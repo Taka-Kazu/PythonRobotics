@@ -35,6 +35,7 @@ def ekf_slam(xEst, PEst, u, z):
     initP = np.eye(2)
 
     # Update
+    print(str(len(z)) + " landmarks detected")
     for iz in range(len(z[:, 0])):  # for each observation
         minid = search_correspond_LM_ID(xEst, PEst, z[iz, 0:2])
 
@@ -79,11 +80,14 @@ def observation(xTrue, xd, u, RFID):
         dy = RFID[i, 1] - xTrue[1, 0]
         d = math.sqrt(dx**2 + dy**2)
         angle = pi_2_pi(math.atan2(dy, dx) - xTrue[2, 0])
+        # observable landmark
         if d <= MAX_RANGE:
-            dn = d + np.random.randn() * Qsim[0, 0]  # add noise
-            anglen = angle + np.random.randn() * Qsim[1, 1]  # add noise
-            zi = np.array([dn, anglen, i])
-            z = np.vstack((z, zi))
+            # recognition probablirity
+            if np.random.rand(1) > 0.50:
+                dn = d + np.random.randn() * Qsim[0, 0]  # add noise
+                anglen = angle + np.random.randn() * Qsim[1, 1]  # add noise
+                zi = np.array([dn, anglen, i])
+                z = np.vstack((z, zi))
 
     # add noise to input
     ud = np.array([[
