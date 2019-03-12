@@ -267,6 +267,11 @@ def main():
 
             p = patches.Ellipse(xy = (xEst[0], xEst[1]), width = a, height = b, alpha = 1, angle = math.degrees(ellipse_angle), color = "cyan")
             ax.add_patch(p)
+            ax.annotate('', xy=[xEst[0]+math.cos(xEst[2]), xEst[1]+math.sin(xEst[2])], xytext=[xEst[0], xEst[1]],
+                        arrowprops=dict(shrink=0, width=1, headwidth=8,
+                                        headlength=10, connectionstyle='arc3',
+                                        facecolor='gray', edgecolor='gray')
+            )
 
             # plot landmark
             for i in range(calc_n_LM(xEst)):
