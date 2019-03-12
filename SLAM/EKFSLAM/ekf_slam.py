@@ -208,6 +208,14 @@ def jacobH(q, delta, x, i):
 def pi_2_pi(angle):
     return (angle + math.pi) % (2 * math.pi) - math.pi
 
+def calculate_error_ellipse(P):
+    _lambda, _v = np.linalg.eig(P)
+    max_index = np.argmax(_lambda)
+    min_index = np.argmin(_lambda)
+    a = math.sqrt(CHI_2 * _lambda[max_index])
+    b = math.sqrt(CHI_2 * _lambda[min_index])
+    ellipse_angle = math.atan2(_v[max_index, 1], _v[max_index, 0])
+    return a, b, ellipse_angle
 
 def main():
     print(__file__ + " start!!")
@@ -240,14 +248,8 @@ def main():
 
         xEst, PEst = ekf_slam(xEst, PEst, ud, z)
 
-        # error ellipse
-        PRobot = PEst[0:2, 0:2]
-        _lambda, _v = np.linalg.eig(PRobot)
-        max_index = np.argmax(_lambda)
-        min_index = np.argmin(_lambda)
-        a = math.sqrt(CHI_2 * _lambda[max_index])
-        b = math.sqrt(CHI_2 * _lambda[min_index])
-        ellipse_angle = math.atan2(_v[max_index, 1], _v[max_index, 0])
+        # robot error ellipse
+        a, b, ellipse_angle = calculate_error_ellipse(PEst[0:2, 0:2])
 
         x_state = xEst[0:STATE_SIZE]
 
@@ -263,10 +265,16 @@ def main():
             plt.plot(RFID[:, 0], RFID[:, 1], "*k")
             plt.plot(xEst[0], xEst[1], ".r")
 
+            p = patches.Ellipse(xy = (xEst[0], xEst[1]), width = a, height = b, alpha = 1, angle = math.degrees(ellipse_angle), color = "cyan")
+            ax.add_patch(p)
+
             # plot landmark
             for i in range(calc_n_LM(xEst)):
                 plt.plot(xEst[STATE_SIZE + i * 2],
                          xEst[STATE_SIZE + i * 2 + 1], "xg")
+                a, b, ellipse_angle = calculate_error_ellipse(PEst[(STATE_SIZE + i * 2):(STATE_SIZE + i * 2) + 2, (STATE_SIZE + i * 2):(STATE_SIZE + i * 2) + 2])
+                p = patches.Ellipse(xy = (xEst[STATE_SIZE + i * 2], xEst[STATE_SIZE + i * 2 + 1]), width = a, height = b, alpha = 1, angle = math.degrees(ellipse_angle), color = "Magenta")
+                ax.add_patch(p)
 
             plt.plot(hxTrue[0, :],
                      hxTrue[1, :], "-b", label="Ground Truth")
@@ -274,9 +282,6 @@ def main():
                      hxDR[1, :], "-k", label="Dead Reckoning")
             plt.plot(hxEst[0, :],
                      hxEst[1, :], "-r", label="Estimated Pose")
-
-            p = patches.Ellipse(xy = (xEst[0], xEst[1]), width = a, height = b, alpha = 1, angle = math.degrees(ellipse_angle), color = "cyan")
-            ax.add_patch(p)
 
             plt.legend()
 
