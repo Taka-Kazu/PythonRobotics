@@ -6,6 +6,7 @@ author: Atsushi Sakai (@Atsushi_twi)
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 
 # EKF state covariance
@@ -21,6 +22,8 @@ MAX_RANGE = 20.0  # maximum observation range
 M_DIST_TH = 2.0  # Threshold of Mahalanobis distance for data association.
 STATE_SIZE = 3  # State size [x,y,yaw]
 LM_SIZE = 2  # LM state size [x,y]
+
+CHI_2 = 9.21934 # X^2, 99%
 
 show_animation = True
 
@@ -83,7 +86,7 @@ def observation(xTrue, xd, u, RFID):
         # observable landmark
         if d <= MAX_RANGE:
             # recognition probablirity
-            if np.random.rand(1) > 0.50:
+            if np.random.rand(1) > 0.70:
                 dn = d + np.random.randn() * Qsim[0, 0]  # add noise
                 anglen = angle + np.random.randn() * Qsim[1, 1]  # add noise
                 zi = np.array([dn, anglen, i])
@@ -237,6 +240,15 @@ def main():
 
         xEst, PEst = ekf_slam(xEst, PEst, ud, z)
 
+        # error ellipse
+        PRobot = PEst[0:2, 0:2]
+        _lambda, _v = np.linalg.eig(PRobot)
+        max_index = np.argmax(_lambda)
+        min_index = np.argmin(_lambda)
+        a = math.sqrt(CHI_2 * _lambda[max_index])
+        b = math.sqrt(CHI_2 * _lambda[min_index])
+        ellipse_angle = math.atan2(_v[max_index, 1], _v[max_index, 0])
+
         x_state = xEst[0:STATE_SIZE]
 
         # store data history
@@ -246,6 +258,7 @@ def main():
 
         if show_animation:  # pragma: no cover
             plt.cla()
+            ax = plt.gca()
 
             plt.plot(RFID[:, 0], RFID[:, 1], "*k")
             plt.plot(xEst[0], xEst[1], ".r")
@@ -256,11 +269,17 @@ def main():
                          xEst[STATE_SIZE + i * 2 + 1], "xg")
 
             plt.plot(hxTrue[0, :],
-                     hxTrue[1, :], "-b")
+                     hxTrue[1, :], "-b", label="Ground Truth")
             plt.plot(hxDR[0, :],
-                     hxDR[1, :], "-k")
+                     hxDR[1, :], "-k", label="Dead Reckoning")
             plt.plot(hxEst[0, :],
-                     hxEst[1, :], "-r")
+                     hxEst[1, :], "-r", label="Estimated Pose")
+
+            p = patches.Ellipse(xy = (xEst[0], xEst[1]), width = a, height = b, alpha = 1, angle = math.degrees(ellipse_angle), color = "cyan")
+            ax.add_patch(p)
+
+            plt.legend()
+
             plt.axis("equal")
             plt.grid(True)
             plt.pause(0.001)
